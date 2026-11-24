@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>Neon Harbor — an open-world crime game</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #11141b; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  #status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .hud { position: fixed; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.8); z-index: 5; pointer-events: none; }
+  #hud-objective { top: 14px; left: 16px; font-size: 17px; font-weight: 600; max-width: 46vw; }
+  #hud-missions { top: 42px; left: 16px; font-size: 13px; opacity: 0.85; }
+  #hud-right { top: 14px; right: 16px; text-align: right; }
+  #hud-stars { font-size: 24px; letter-spacing: 2px; }
+  #hud-cash { font-size: 22px; font-weight: 700; color: #7dd94f; }
+  #hud-health { width: 170px; height: 12px; background: rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.5); border-radius: 6px; margin: 6px 0 4px auto; overflow: hidden; }
+  #hud-health-fill { height: 100%; width: 100%; background: #e5534b; }
+  #hud-ammo { font-size: 13px; opacity: 0.9; }
+  #hud-speed { position: fixed; right: 18px; bottom: 16px; font-size: 26px; font-weight: 700; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.8); z-index: 5; }
+  #hud-help { position: fixed; left: 16px; bottom: 14px; font-size: 12.5px; color: rgba(255,255,255,0.85); text-shadow: 0 1px 3px rgba(0,0,0,0.8); z-index: 5; line-height: 1.5; }
+  #minimap { position: fixed; top: 118px; right: 16px; width: 168px; height: 168px; z-index: 5; border-radius: 6px; box-shadow: 0 2px 10px rgba(0,0,0,0.5); }
+  #toast { position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%) translateY(8px); background: rgba(10,14,22,0.88); color: #ffd94f; font-size: 16px; font-weight: 600; padding: 10px 18px; border-radius: 8px; opacity: 0; transition: opacity 0.25s, transform 0.25s; z-index: 8; pointer-events: none; max-width: 80vw; text-align: center; }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .overlay { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; z-index: 10; }
+  .overlay.show { display: flex; }
+  .panel { background: rgba(12,16,26,0.92); border: 1px solid rgba(255,255,255,0.15); border-radius: 14px; padding: 34px 44px; text-align: center; color: #eef1f5; max-width: 620px; box-shadow: 0 10px 40px rgba(0,0,0,0.6); }
+  .panel h1 { margin: 0 0 6px; font-size: 54px; letter-spacing: 2px; color: #ff7b2e; }
+  .panel h1 .neon { color: #4fc3f7; }
+  .panel h2 { margin: 0 0 14px; font-size: 30px; }
+  .panel p { margin: 8px 0; font-size: 15px; line-height: 1.55; color: #c8cfdb; }
+  .panel .keys { font-size: 13.5px; color: #8b93a3; }
+  .panel button { margin-top: 18px; padding: 12px 34px; font-size: 18px; font-weight: 700; color: #11141b; background: #ffd94f; border: none; border-radius: 8px; cursor: pointer; }
+  .panel button:hover { background: #ffe14f; }
+  .panel button.ghost { background: transparent; color: #eef1f5; border: 1px solid rgba(255,255,255,0.4); font-size: 15px; padding: 9px 22px; margin-left: 10px; }
+  #mute-btn { position: fixed; right: 16px; bottom: 60px; z-index: 6; background: rgba(0,0,0,0.5); color: #fff; border: 1px solid rgba(255,255,255,0.4); border-radius: 6px; padding: 5px 10px; font-size: 12px; cursor: pointer; }
+</style>
+</head>
+<body>
+<canvas id="game" aria-label="Neon Harbor: an open-world crime game. Drive, steal cars, dodge the police and run jobs for Mara."></canvas>
+<p id="status" role="status" aria-live="polite"></p>
+
+<div class="hud" id="hud-objective"></div>
+<div class="hud" id="hud-missions"></div>
+<div class="hud" id="hud-right">
+  <div id="hud-stars">☆☆☆☆☆</div>
+  <div id="hud-cash">$150</div>
+  <div id="hud-health"><div id="hud-health-fill"></div></div>
+  <div id="hud-ammo">Ammo 24</div>
+</div>
+<canvas id="minimap" width="168" height="168"></canvas>
+<div id="hud-speed"></div>
+<div id="hud-help">WASD move / drive &nbsp;·&nbsp; E enter car / talk &nbsp;·&nbsp; F punch &nbsp;·&nbsp; Click shoot &nbsp;·&nbsp; Space handbrake &nbsp;·&nbsp; Shift sprint &nbsp;·&nbsp; P pause &nbsp;·&nbsp; M mute</div>
+<button id="mute-btn">🔊 Mute (M)</button>
+<div id="toast"></div>
+
+<div class="overlay show" id="menu">
+  <div class="panel">
+    <h1>NEON <span class="neon">HARBOR</span></h1>
+    <p>A sun-soaked coastal city. One broke driver, one fixer named Mara, and a police department that never sleeps.</p>
+    <p>Steal cars, outrun the law, run four jobs — and take the city for yourself.</p>
+    <p class="keys">WASD move &amp; drive · E enter a car / talk to Mara · F punch · Click to shoot · Space handbrake · Shift sprint · P pause</p>
+    <button id="start-btn">Start the engine</button>
+    <p class="keys">Progress saves in this browser. Headphones on — the city has a soundtrack.</p>
+  </div>
+</div>
+
+<div class="overlay" id="pause">
+  <div class="panel">
+    <h2>Paused</h2>
+    <p>The city will wait for you.</p>
+    <button id="resume-btn">Resume</button>
+    <button class="ghost" id="menu-btn">Main menu</button>
+  </div>
+</div>
+
+<div class="overlay" id="end">
+  <div class="panel">
+    <h2 id="end-title">BUSTED</h2>
+    <p id="end-text"></p>
+    <button id="end-btn">Back on the streets</button>
+  </div>
+</div>
+
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
